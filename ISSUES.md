@@ -27,8 +27,3 @@ instance via tape handoff (see `source/proclib-dump.jcl` / `proclib-load.jcl`,
 **When touching any copy/rename/delete logic in the console or WEBADM
 backend: always size temp/scratch datasets from the source, and never
 delete/overwrite an original before confirming the copy succeeded.**
-
-## Git workflow
-
-Never run git commands (add/commit/push/merge/etc.) directly — the maintainer
-runs all Git commands themselves. Instead, give them the exact commands to run.
