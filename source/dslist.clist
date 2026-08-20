@@ -1,0 +1,20 @@
+PROC 1 PATTERN
+/* DSLIST - interactive TSO wrapper around the SYS1.LINKLIB(DSLIST)  */
+/* load module. The load module itself just wildcard-matches names  */
+/* out of a pre-built catalog dump read via DD:INPUT - there's no    */
+/* JCL step to build that dump when called bare from TSO, so this    */
+/* CLIST builds it (LISTCAT + the YOURID user catalog), points INPUT */
+/* at it, calls the module, then cleans up.                          */
+/* Usage:  DSLIST 'YOURID.*'   (quotes matter - keeps the . and * )  */
+CONTROL NOMSG
+FREE DD(SYSPRINT)
+ALLOC DD(SYSPRINT) DSN(&SYSUID..DSLIST.TEMP) NEW CATLG +
+      SPACE(50,50) TRACKS DSORG(PS) RECFM(F,B) LRECL(133) +
+      BLKSIZE(13300) UNIT(SYSDA)
+LISTCAT
+LISTCAT CATALOG(SYS1.UCAT.TSO)
+FREE DD(SYSPRINT)
+ALLOC DD(INPUT) DSN(&SYSUID..DSLIST.TEMP) SHR
+CALL 'SYS1.LINKLIB(DSLIST)' '&PATTERN'
+FREE DD(INPUT)
+DELETE '&SYSUID..DSLIST.TEMP'

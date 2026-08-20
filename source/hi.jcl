@@ -1,0 +1,18 @@
+//HERC01R  JOB (REXX),'HI.REXX',CLASS=A,MSGCLASS=H,REGION=8192K,
+//         USER=HERC01,PASSWORD=CUL8TR
+//* WRITE SCRIPT TO TEMP MEMBER, THEN RUN IT WITH BREXX
+//WRITE    EXEC PGM=IEBGENER
+//SYSPRINT DD DUMMY
+//SYSIN    DD DUMMY
+//SYSUT2   DD DSN=HERC01.RXBATCH.EXEC(RXTEMP),DISP=OLD
+//SYSUT1   DD DATA,DLM='##'
+/* REXX */
+say 'Hello from BREXX on MVS 3.8!'
+do i = 1 to 3
+  say '  iteration' i 'of 3'
+end
+say 'today on the mainframe it is' date() time()
+##
+//REXX     EXEC RXBATCH,BREXX='BREXX',
+//         EXEC='RXTEMP',
+//         SLIB='HERC01.RXBATCH.EXEC'

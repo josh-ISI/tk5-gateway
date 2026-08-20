@@ -1,0 +1,45 @@
+# TK5 Tools - reverse proxy + auth gate
+# Run this on the host that fronts the MVS system. In the co-located setup
+# (Ubuntu box at 192.168.1.XXX that also runs Hercules) it proxies to the local
+# HTTPD; the auth service on 127.0.0.1:4180 validates logins. Nobody reaches the
+# console without a valid MVS/RAKF login.
+#
+#   caddy run --config ./Caddyfile
+#
+# Overrides via env:
+#   TK5_SITE     site address           (default https://192.168.1.XXX)
+#   TK5_BACKEND  the MVS HTTPD address  (default 127.0.0.1:8080)
+# Split-host example (proxy separate from MVS):
+#   TK5_SITE=https://192.168.1.10  TK5_BACKEND=192.168.1.20:8080
+#
+# Site address uses Caddy's internal CA (self-signed; browsers warn once, or
+# install Caddy's root CA on clients). For a hostname + real certs, set
+# TK5_SITE=https://tk5.example.com and remove the `tls internal` line.
+
+{$TK5_SITE:https://192.168.1.XXX} {
+	tls internal
+
+	# --- ungated: the login page + auth endpoints (served by the auth svc) ---
+	handle /login {
+		reverse_proxy 127.0.0.1:4180
+	}
+	handle /auth/* {
+		reverse_proxy 127.0.0.1:4180
+	}
+	handle /logout {
+		reverse_proxy 127.0.0.1:4180
+	}
+
+	# --- everything else: require a valid session, then proxy to the console ---
+	handle {
+		forward_auth 127.0.0.1:4180 {
+			uri /auth/verify
+			copy_headers X-Tk5-User
+		}
+		reverse_proxy {$TK5_BACKEND:127.0.0.1:8080}
+	}
+
+	log {
+		output file /var/log/caddy/tk5.log
+	}
+}

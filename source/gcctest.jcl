@@ -1,0 +1,23 @@
+//GCCTEST  JOB (GCC),'PDPTEST',CLASS=C,REGION=0K,MSGCLASS=H,
+//         USER=HERC01,PASSWORD=CUL8TR
+//*
+//* PDPCLIB sample (from WEBJOB), fixed for HERC01:
+//*   MSGCLASS=H so output stays on the spool (Jobs tab / REST fetch)
+//*   OUTFILE/STEPLIB moved from PDPCLIB.LINKLIB (RAKF PROD, S913)
+//*   to HERC01.LINKLIB
+//*   LKED SYSLIB gets HERC01.NCALIB first: the new PDPTEST source
+//*   calls __getam() (@@GETAM), which the 2023 PDPCLIB.NCALIB lacks
+//*   AMODE=31,RMODE=ANY dropped: invalid options on the 3.8 linkeditor
+//*
+//S1 EXEC GCCCL,
+//  INFILE='PDPCLIB.SOURCE(PDPTEST)',
+//  OUTFILE='HERC01.LINKLIB(PDPTEST)',
+//  LOPTS='MAP'
+//LKED.SYSLIB DD DSN=HERC01.NCALIB,DISP=SHR
+//            DD DSN=PDPCLIB.NCALIB,DISP=SHR
+//*
+//S2 EXEC PGM=PDPTEST,PARM='PaulEdwards was Here'
+//STEPLIB  DD DSN=HERC01.LINKLIB,DISP=SHR
+//SYSIN    DD DUMMY
+//SYSPRINT DD SYSOUT=*
+//SYSTERM  DD SYSOUT=*

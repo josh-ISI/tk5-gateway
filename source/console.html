@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TK5 Tools</title>
+<link rel="stylesheet" href="console.css">
+</head>
+<body>
+<header>
+  <h1>TK5 Tools</h1>
+  <span class="sub">MVS 3.8j<span id="whoUser"></span></span>
+  <a class="help-link" href="/help.html" target="_blank" rel="noopener" title="HTTPD server documentation (original TK5 welcome page)">Help</a>
+  <a class="logout-link" href="/logout" title="Sign out of TK5 Tools">Sign out</a>
+</header>
+<nav>
+  <button data-tab="datasets" class="active">Datasets</button>
+  <button data-tab="jobs">Jobs</button>
+  <button data-tab="oper">Operator</button>
+</nav>
+<div class="app-body">
+<main>
+  <div id="msg" class="msg"></div>
+
+  <!-- Datasets opens straight into the full-screen Explorer overlay (below);
+       this section stays empty and is always covered by #explorer. -->
+  <section id="datasets" class="tab active"></section>
+
+  <section id="jobs" class="tab">
+    <div class="row">
+      <div class="col" style="flex:0 0 420px">
+        <div class="card">
+          <h2>Job queue</h2>
+          <div class="body">
+            <div class="toolbar">
+              <input type="text" id="jobFilter" class="grow" placeholder="filter e.g. HERC* or *" value="*">
+              <button class="btn" onclick="listJobs()">Refresh</button>
+            </div>
+            <table class="jobs"><thead><tr><th>Job</th><th>ID</th><th>Status</th><th></th></tr></thead>
+            <tbody id="jobRows"></tbody></table>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <h2>Output &mdash; <span id="joName" class="muted">select a job</span></h2>
+          <div class="body"><pre id="jobOut" class="out"> </pre></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="oper" class="tab">
+    <div class="row">
+      <div class="col">
+        <div class="card">
+          <h2>Operator console &mdash; Hercules / MVS / JES2</h2>
+          <div class="body">
+            <div class="toolbar">
+              <input type="text" id="operCmd" class="grow" list="operHistoryList" placeholder="/$DA or devlist PRT &mdash; prefix MVS/JES2 commands with /, Hercules commands need no prefix">
+              <datalist id="operHistoryList"></datalist>
+              <button class="btn" onclick="operSend()">Send</button>
+              <button class="btn ghost" onclick="operClearHistory()" title="Clear the remembered command history">Clear history</button>
+            </div>
+            <iframe id="operFrame" class="oper-frame" title="Hercules operator console"></iframe>
+            <div class="hint">This is Hercules's own web console (port 8038), embedded live &mdash; its own Refresh/Send controls work too. Up/Down arrow in the command box recalls your last 20 commands.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="explorer">
+  <div class="ex-top">
+    <span class="ex-title">TK5 Explorer</span>
+    <span id="exCrumbs" class="ex-crumbs"></span>
+    <span class="grow"></span>
+    <select id="exFmtSel" class="ex-fmtsel" disabled title="column ruler format" onchange="exSetFmt(this.value)">
+      <option value="auto">Auto</option>
+      <option value="jcl">JCL</option>
+      <option value="asm">Assembler</option>
+      <option value="rexx">REXX</option>
+      <option value="plain">Plain</option>
+    </select>
+    <span id="exDot" class="ex-dot" style="visibility:hidden" title="unsaved changes">&#9679;</span>
+    <button class="btn" id="exSave" onclick="exSave()" disabled>Save</button>
+  </div>
+  <div class="ex-main">
+    <div class="ex-side">
+      <div class="ex-side-ds">
+        <div class="ex-cap">Datasets</div>
+        <div class="ex-filter">
+          <input type="text" id="exFilter" placeholder="HERC01 or HERC01.J* (* and ? ok)">
+          <button class="btn ghost" onclick="exTree()" title="refresh">&#8635;</button>
+          <button class="btn ghost" onclick="openNewDs()" title="New dataset">&plus;</button>
+        </div>
+        <div id="exQuick" class="ex-quick">
+          <div class="ex-qsec" id="exFavSec" style="display:none">
+            <div class="ex-qhead" onclick="qToggleSection('fav')">
+              <span class="ex-qchev">&#9656;</span>Favorites <span class="ex-qn" id="exFavN"></span>
+            </div>
+            <div class="ex-qbody" id="exFavBody"></div>
+          </div>
+          <div class="ex-qsec" id="exRecSec" style="display:none">
+            <div class="ex-qhead" onclick="qToggleSection('rec')">
+              <span class="ex-qchev">&#9656;</span>Recent <span class="ex-qn" id="exRecN"></span>
+            </div>
+            <div class="ex-qbody" id="exRecBody"></div>
+          </div>
+        </div>
+        <div id="exClipBar" class="ex-clipbar" style="display:none">
+          <span id="exClipText"></span><span class="x" onclick="exClearClip()" title="clear">&times;</span>
+        </div>
+        <div id="exTreeList" class="ex-tree" oncontextmenu="exBgMenu(event)"></div>
+      </div>
+      <div class="ex-side-jobs" id="exSideJobs">
+        <div class="ex-jobs-head" onclick="exJobsToggle()">
+          <span class="ex-qchev">&#9656;</span>Jobs <span class="ex-qn" id="exJobsN"></span>
+          <span class="grow"></span>
+          <span class="ex-jobs-refresh" onclick="event.stopPropagation();exJobsRefresh()" title="refresh">&#8635;</span>
+        </div>
+        <div class="ex-jobs-body" id="exJobsBody">
+          <div class="ex-filter">
+            <input type="text" id="exJobFilter" placeholder="filter e.g. HERC* or *" value="*">
+          </div>
+          <div id="exJobsList" class="ex-tree"></div>
+        </div>
+      </div>
+    </div>
+    <div class="ex-edit">
+      <div id="exPanesRoot" class="ex-panes"></div>
+      <template id="exPaneTpl"><div class="ex-pane">
+        <div class="ex-tabbar"></div>
+        <div class="ex-find">
+          <div class="ex-find-row">
+            <input class="ex-find-q" placeholder="Find" spellcheck="false">
+            <span class="ex-find-count">0/0</span>
+            <button class="ex-find-btn" data-act="prev" title="Previous match (Shift+Enter)">&#8593;</button>
+            <button class="ex-find-btn" data-act="next" title="Next match (Enter)">&#8595;</button>
+            <button class="ex-find-btn" data-act="case" title="Match case">Aa</button>
+            <button class="ex-find-x" data-act="close" title="Close (Esc)">&times;</button>
+          </div>
+          <div class="ex-find-row">
+            <input class="ex-find-r" placeholder="Replace" spellcheck="false">
+            <button class="ex-find-btn" data-act="rep" title="Replace this match">Replace</button>
+            <button class="ex-find-btn" data-act="repall" title="Replace all matches">All</button>
+          </div>
+        </div>
+        <div class="ex-rulerrow">
+          <div class="ex-rulerpad"></div>
+          <div class="ex-rulerstage"><pre class="ex-ruler"></pre></div>
+        </div>
+        <div class="ex-editwrap">
+          <div class="ex-gutter"></div>
+          <div class="ex-stage">
+            <pre class="ex-hl" aria-hidden="true"><code></code></pre>
+            <textarea class="ex-text" spellcheck="false" disabled placeholder="Select a sequential dataset or a member on the left."></textarea>
+          </div>
+        </div>
+        <div class="ex-status"><span class="ex-state">ready</span><span class="grow"></span><span class="ex-lines"></span></div>
+        <div class="ex-dropzone">
+          <div class="zone left"></div><div class="zone right"></div>
+          <div class="zone top"></div><div class="zone bottom"></div>
+          <div class="zone center"></div>
+        </div>
+      </div></template>
+    </div>
+  </div>
+</div>
+</div>
+<footer class="app-foot">
+  <span>Josh Power &middot; 2026</span>
+  <span class="status"><span id="dot" class="dot"></span><span id="statusText">connecting&hellip;</span></span>
+</footer>
+
+<div id="ctx" class="ctx"></div>
+
+<div id="newds" class="overlay">
+  <div class="modal wide">
+    <h3>New dataset<span class="x" onclick="closeNewDs()">&times;</span></h3>
+    <div class="body">
+      <div class="form">
+        <label>Name</label><input type="text" id="ndDsn" placeholder="HERC01.NEW.PDS">
+        <label>Type</label>
+        <select id="ndType" onchange="ndTypeChange()">
+          <option value="PO">PDS &mdash; partitioned</option>
+          <option value="PS">Sequential (PS)</option>
+          <option value="DA">Direct (DA)</option>
+          <option value="PDSE" disabled>PDSE &mdash; needs DFSMS (not on MVS 3.8)</option>
+          <option value="VSAM" disabled>VSAM &mdash; no VSAM volume configured</option>
+          <option value="ZFS" disabled>zFS/HFS &mdash; needs USS (not on MVS 3.8)</option>
+        </select>
+        <label>Volume</label><input type="text" id="ndVol" placeholder="blank = SYSDA pool" value="">
+        <label>RECFM</label>
+        <select id="ndRecfm" onchange="ndRecfmChange()">
+          <option>FB</option><option>VB</option><option>F</option><option>V</option><option>U</option>
+        </select>
+        <label>LRECL / BLKSIZE</label>
+        <div class="three" style="grid-template-columns:1fr 1fr">
+          <input type="text" id="ndLrecl" value="80"><input type="text" id="ndBlk" value="3120">
+        </div>
+        <label>Space (TRK)</label>
+        <div class="three">
+          <input type="text" id="ndPri" value="15" title="primary">
+          <input type="text" id="ndSec" value="15" title="secondary">
+          <input type="text" id="ndDir" value="20" title="directory blocks">
+        </div>
+        <div class="span2 note" id="ndSpaceNote">primary / secondary / directory-blocks</div>
+      </div>
+    </div>
+    <div class="foot">
+      <span id="ndInfo" class="muted"></span><span class="grow"></span>
+      <button class="btn ghost" onclick="closeNewDs()">Cancel</button>
+      <button class="btn" id="ndCreate" onclick="createDataset()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div id="props" class="overlay">
+  <div class="modal narrow">
+    <h3><span id="propsTitle">Properties</span><span class="x" onclick="closeProps()">&times;</span></h3>
+    <div class="body"><div id="propsBody" class="proplist"></div></div>
+  </div>
+</div>
+
+<script src="console.js"></script>
+</body>
+</html>
